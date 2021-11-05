@@ -1,3 +1,5 @@
+/* DOSShell Loader/Task list API open source prototype */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <dos.h>
@@ -23,35 +25,19 @@ typedef
 typedef
   struct
   {
-    unsigned char id;		// Swither id
-    unsigned char unk1[2+2];
+    unsigned char id;		// Switcher id
+    unsigned char unk1[4];
     unsigned char params[130];
-    unsigned char unk2[80+68+68+2+2+2+1+2];
+    unsigned char unk2[225];    // Seems screen grabber path here and some other path things
     unsigned int  task_id;	// Active task id
     unsigned int  last_error;	// last error
-    unsigned char unk3[1+1+1+1+1];
+    unsigned char unk3[];
     unsigned char entries_count;
     unsigned char first;	// fist task
     tentrie  entries[MAXENTRIES];
   } tcontrol;
 
 tcontrol far control;
-
-/* char far shell[]="DOSSHELL.EXE";
-par_blk  dw     0               ; use current environment
-cmd_loc  dw     COMMANDLINEOUT  ; command-line address
-cmd_seg  dw     0               ; fill in at initialization
-         dw     offset fcb1     ; default FCB #1
-fcb1_seg dw     0               ; fill in at initialization
-         dw     offset fcb2     ; default FCB #2
-fcb2_seg dw     0               ; fill in at initialization
-
-fcb1     db     0
-         db     11 dup (' ')
-         db     25 dup ( 0 )
-fcb2     db     0
-         db     11 dup (' ')
-         db     25 dup ( 0 )    */
 
 void __interrupt __far interrupt_handler(union INTPACK r)
 {
@@ -84,10 +70,16 @@ void __interrupt __far interrupt_handler(union INTPACK r)
 		}
         }
 	break;
+      case 2: // Switch to next task by Z order
+        break;
+      case 3: // Switch to previous task by Z order
+        break;
       case 4: // remove Task
 	control.entries[r.h.bl].flags=F_UNUSED;
 	break;
-      case 6: // ithprogramstring
+      case 5: // Go to next task in list
+        break;
+      case 6: // Get i-th program name entry
 	r.x.si=FP_OFF(control.entries[r.h.bl].name);
 	r.x.es=FP_SEG(control.entries[r.h.bl].name);
 	break;
@@ -98,9 +90,15 @@ void __interrupt __far interrupt_handler(union INTPACK r)
 	r.x.dx=FP_OFF(&control);
 	r.x.ax=FP_SEG(&control);
 	break;
+      case 9: // Get task list entry
+        break;
+      case 10: // Add parameters
+        break;
       case 11: // LastError
 	r.x.ax=control.last_error;
 	break;
+      case 12: //Put task on top of Z order
+        break;
       default:
         _chain_intr(oldvect);
 	break;
@@ -112,41 +110,18 @@ void __interrupt __far interrupt_handler(union INTPACK r)
 
 void main(void)
 {
-        union REGS r;
-        struct SREGS s;
+    union REGS r;
+    struct SREGS s;
+
     // Запоминаем адрес старого обработчика прерываний
     oldvect = _dos_getvect (0x2f);
 
     // Устанавливаем новый обработчик прерываний
     _dos_setvect(0x2f, interrupt_handler);
 
-//        r.x.ax = 0x4a05;  
-//        r.x.si = 0;  
-//        int86x( 0x2f, &r, &r, &s );
+    // ЗАпускаем саму оболочку
+    system("DOSSHELL.EXE");
 
-    // Главный цикл
-//        r.h.l = 0;  
-//        r.x.ds = FP_SEG(shell);
-//        r.x.dx = FP_OFF(shell);
-
-//        intdos(0x4b, &r, &r);
-	system("DOSSHELL.EXE");
-
-//test();
-                /*
-        r.x.ax = 0x4a05;  
-        r.x.si = 11;  
-        int86x( 0x2f, &r, &r, &s );
-        printf( "mouse handler address=%4.4x:%4.4x\n",
-                s.es, r.x.ax );    
-
-	r.x.bx=r.x.ax;
-        r.x.ax = 0x4a05; 
-        r.x.si = 6;  
-        int86x( 0x2f, &r, &r, &s );
-        printf( "mouse handler address=%Fs\n",
-                MK_FP(s.es, r.x.si) );    
-                     */
     // Восстанавливаем старый обработчик прерываний
     _dos_setvect (0x2f, oldvect);
 
